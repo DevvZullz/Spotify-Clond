@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZullzSpotify - Pemutar Musik By ZullzSpotify (Real Search)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome untuk ikon Spotify -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Montserrat -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #000000;
+            color: #ffffff;
+            user-select: none;
+        }
+        /* Custom scrollbar ala Spotify */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121212;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3e3e3e;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #1db954;
+        }
+        /* Hover & transitions */
+        .spotify-card {
+            transition: background-color 0.3s ease, transform 0.3s ease;
+        }
+        .spotify-card:hover {
+            background-color: #282828 !important;
+            transform: translateY(-4px);
+        }
+        .spotify-card .play-btn {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+        }
+        .spotify-card:hover .play-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* Range input accent */
+        input[type="range"] {
+            accent-color: #1db954;
+        }
+        /* Animasi loading pulse */
+        .shimmer {
+            background: linear-gradient(90deg, #181818 25%, #282828 50%, #181818 75%);
+            background-size: 200% 100%;
+            animation: loading-shimmer 1.5s infinite;
+        }
+        @keyframes loading-shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col">
+
+    <!-- BACKDROP SIDEBAR (Hanya Aktif di Mobile saat menu terbuka) -->
+    <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 bg-black/80 z-40 hidden transition-opacity duration-300 md:hidden"></div>
+
+    <!-- Kontainer Utama (Sidebar + Main Content Area) -->
+    <div class="flex flex-1 h-[calc(100vh-90px)] p-2 gap-2 overflow-hidden relative">
+        
+        <!-- SIDEBAR (Dapat meluncur di HP / Selalu muncul di Desktop) -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-black md:bg-transparent z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out md:static md:w-80 flex flex-col gap-2 shrink-0 p-2 md:p-0">
+            <!-- Header khusus mobile untuk menutup sidebar -->
+            <div class="flex items-center justify-between p-4 md:hidden">
+                <div class="flex items-center gap-2">
+                    <i class="fa-brands fa-spotify text-3xl text-[#1db954]"></i>
+                    <span class="text-xl font-bold tracking-tight">Spotify</span>
+                </div>
+                <button onclick="toggleSidebar()" class="w-10 h-10 rounded-full bg-[#181818] flex items-center justify-center text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Navigasi Utama -->
+            <div class="bg-[#121212] rounded-lg p-5 flex flex-col gap-4">
+                <div class="hidden md:flex items-center gap-2 mb-2">
+                    <i class="fa-brands fa-spotify text-3xl text-[#1db954]"></i>
+                    <span class="text-xl font-bold tracking-tight">ZullzSpotify</span>
+                </div>
+                <button onclick="switchView('home')" id="nav-home" class="flex items-center gap-5 text-white font-bold transition duration-200 text-sm py-1">
+                    <i class="fa-solid fa-house text-xl"></i> Home
+                </button>
+                <button onclick="switchView('search')" id="nav-search" class="flex items-center gap-5 text-gray-400 hover:text-white font-bold transition duration-200 text-sm py-1">
+                    <i class="fa-solid fa-magnifying-glass text-xl"></i> Cari Musik Yuksz
+                </button>
+                <button onclick="switchView('premium')" id="nav-premium" class="flex items-center gap-5 text-gray-400 hover:text-white font-bold transition duration-200 text-sm py-1">
+                    <i class="fa-solid fa-crown text-xl text-yellow-500"></i> Premium 
+                </button>
+            </div>
+
+            <!-- Perpustakaan / Library -->
+            <div class="bg-[#121212] rounded-lg p-5 flex-1 flex flex-col gap-4 overflow-hidden">
+                <div class="flex items-center justify-between text-gray-400 mb-2">
+                    <div class="flex items-center gap-3 hover:text-white cursor-pointer transition">
+                        <i class="fa-solid fa-book text-xl"></i>
+                        <span class="font-bold text-sm">Perpustakaanmu</span>
+                    </div>
+                </div>
+                <!-- Daftar Playlist -->
+                <div class="flex-1 overflow-y-auto flex flex-col gap-3 pr-1">
+                    <!-- Liked Songs Playlist Item -->
+                    <div onclick="playLikedPlaylist()" class="flex items-center gap-3 p-2 hover:bg-[#1a1a1a] rounded-md cursor-pointer transition">
+                        <div class="w-12 h-12 bg-gradient-to-br from-[#450af5] to-[#c4efd9] rounded-md flex items-center justify-center text-white shrink-0">
+                            <i class="fa-solid fa-heart"></i>
+                        </div>
+                        <div class="truncate">
+                            <p class="font-bold text-sm truncate">Lagu Disukai</p>
+                            <p class="text-xs text-gray-400 font-medium" id="liked-songs-count">0 lagu</p>
+                        </div>
+                    </div>
+
+                    <!-- Offline Playlist Item -->
+                    <div onclick="playOfflinePlaylist()" class="flex items-center gap-3 p-2 hover:bg-[#1a1a1a] rounded-md cursor-pointer transition">
+                        <div class="w-12 h-12 bg-[#1db954] rounded-md flex items-center justify-center text-black shrink-0">
+                            <i class="fa-solid fa-arrow-down"></i>
+                        </div>
+                        <div class="truncate">
+                            <p class="font-bold text-sm truncate">Hasil Unduhan (Offline)</p>
+                            <p class="text-xs text-gray-400 font-medium" id="downloaded-songs-count">0 lagu</p>
+                        </div>
+                    </div>
+
+                    <!-- Mode Offline Switch -->
+                    <div class="p-3 bg-[#181818] rounded-lg mt-2 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold">Mode Offline Miskin</p>
+                            <p class="text-[10px] text-gray-400">Hanya putar unduhan</p>
+                        </div>
+                        <button onclick="toggleOfflineMode()" id="offline-toggle-btn" class="w-10 h-6 bg-neutral-600 rounded-full p-1 transition duration-300 relative">
+                            <div class="w-4 h-4 bg-white rounded-full transition transform translate-x-0" id="offline-toggle-circle"></div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 bg-[#121212] rounded-lg overflow-y-auto relative p-4 md:p-6">
+            
+            <!-- HEADER (Hamburger, Navigasi Kiri-Kanan, Kolom Pencarian Persisten & Profil) -->
+            <header class="flex justify-between items-center mb-6 sticky top-0 z-30 bg-[#121212]/95 backdrop-blur-md py-3 px-1 gap-2 md:gap-4">
+                <div class="flex items-center gap-2 shrink-0">
+                    <!-- TOMBOL HAMBURGER MOBILE -->
+                    <button onclick="toggleSidebar()" class="md:hidden w-10 h-10 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80 transition mr-1">
+                        <i class="fa-solid fa-bars text-lg"></i>
+                    </button>
+                    
+                    <div class="hidden sm:flex items-center gap-2">
+                        <button class="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center hover:opacity-80 transition">
+                            <i class="fa-solid fa-chevron-left text-gray-300"></i>
+                        </button>
+                        <button class="w-8 h-8 rounded-full bg-black/60 flex items-center justify-center hover:opacity-80 transition">
+                            <i class="fa-solid fa-chevron-right text-gray-300"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Kolom Pencarian Persisten Utama -->
+                <div class="flex-1 max-w-md relative">
+                    <span class="absolute inset-y-0 left-3.5 flex items-center text-gray-400">
+                        <i class="fa-solid fa-magnifying-glass text-xs md:text-sm"></i>
+                    </span>
+                    <input type="text" id="header-search-input" onfocus="onSearchFocus()" oninput="handleHeaderSearch(this.value)" placeholder="Cari lagu, artis..." class="w-full bg-[#242424] hover:bg-[#2a2a2a] focus:bg-[#242424] text-xs md:text-sm text-white font-medium pl-9 md:pl-10 pr-8 py-2 md:py-2.5 rounded-full border-2 border-transparent focus:border-white outline-none transition duration-200">
+                    <button onclick="clearHeaderSearch()" id="clear-search-btn" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition hidden">
+                        <i class="fa-solid fa-xmark text-xs md:text-sm"></i>
+                    </button>
+                </div>
+                
+                <div class="flex items-center gap-3 shrink-0">
+                    <span id="user-tier-badge" class="bg-neutral-800 text-gray-300 text-[10px] md:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Free Tier</span>
+                    <div class="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center cursor-pointer border-2 border-transparent hover:border-white transition" onclick="switchView('premium')">
+                        <i class="fa-solid fa-user text-sm text-white"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- VIEW: HOME (BERANDA) -->
+            <section id="view-home" class="block">
+                <!-- Ucapan Dinamis -->
+                <h1 id="greeting" class="text-2xl md:text-3xl font-extrabold tracking-tight mb-6">Selamat Pagi</h1>
+                
+                <!-- Quick Access Grid -->
+                <h2 class="text-lg font-bold mb-3 tracking-tight">Sering Diputar Akhir-akhir Ini</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8" id="quick-access-grid">
+                    <!-- Shimmer Loading -->
+                    <div class="shimmer h-20 rounded-md"></div>
+                    <div class="shimmer h-20 rounded-md hidden sm:block"></div>
+                    <div class="shimmer h-20 rounded-md hidden lg:block"></div>
+                </div>
+
+                <!-- Rekomendasi Musik Utama -->
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl md:text-2xl font-bold tracking-tight hover:underline cursor-pointer">Rekomendasi Utama Terkini</h2>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4" id="recommendation-grid">
+                        <!-- Shimmer Loading Grid -->
+                        <div class="flex flex-col gap-2">
+                            <div class="shimmer aspect-square rounded-md"></div>
+                            <div class="shimmer h-4 w-3/4 rounded mt-1"></div>
+                            <div class="shimmer h-3 w-1/2 rounded"></div>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <div class="shimmer aspect-square rounded-md"></div>
+                            <div class="shimmer h-4 w-3/4 rounded mt-1"></div>
+                            <div class="shimmer h-3 w-1/2 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: SEARCH -->
+            <section id="view-search" class="hidden">
+                <h1 class="text-3xl font-extrabold mb-6">Cari</h1>
+                
+                <!-- Search Results Area -->
+                <div id="search-results-section" class="hidden mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-2xl font-bold">Hasil Pencarian Teratas</h2>
+                        <button onclick="clearHeaderSearch()" class="text-xs text-gray-400 hover:text-white transition">Hapus Hasil</button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="search-results-grid">
+                        <!-- Hasil pencarian akan dimuat di sini -->
+                    </div>
+                </div>
+
+                <!-- Jelajahi Kategori -->
+                <div>
+                    <h2 class="text-xl md:text-2xl font-bold mb-4">Jelajahi Kategori Musik Terpopuler</h2>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                        <div onclick="quickGenreSearch('Pop Hits')" class="h-44 p-4 rounded-xl font-extrabold text-lg relative overflow-hidden cursor-pointer hover:scale-105 transition duration-200" style="background-color: rgb(39, 133, 106);">
+                            Pop Indonesia
+                            <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=100&q=80" class="w-20 h-20 rotate-12 translate-x-4 translate-y-4 absolute bottom-0 right-0 shadow-lg object-cover">
+                        </div>
+                        <div onclick="quickGenreSearch('Indie Indonesia')" class="h-44 p-4 rounded-xl font-extrabold text-lg relative overflow-hidden cursor-pointer hover:scale-105 transition duration-200" style="background-color: rgb(30, 50, 100);">
+                            Indie Folk
+                            <img src="https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=100&q=80" class="w-20 h-20 rotate-12 translate-x-4 translate-y-4 absolute bottom-0 right-0 shadow-lg object-cover">
+                        </div>
+                        <div onclick="quickGenreSearch('K-Pop')" class="h-44 p-4 rounded-xl font-extrabold text-lg relative overflow-hidden cursor-pointer hover:scale-105 transition duration-200" style="background-color: rgb(141, 103, 171);">
+                            K-Pop
+                            <img src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=100&q=80" class="w-20 h-20 rotate-12 translate-x-4 translate-y-4 absolute bottom-0 right-0 shadow-lg object-cover">
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW: PREMIUM & ADMIN -->
+            <section id="view-premium" class="hidden">
+                <div class="max-w-4xl mx-auto">
+                    <h1 class="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-amber-300 to-emerald-400">Pusat Langganan & Control Panel</h1>
+                    <div class="flex items-center gap-2 mb-6">
+                        <p class="text-gray-400 text-sm">Aktifkan Premium untuk menikmati pemutaran lagu offline dan unduhan.</p>
+                        <span id="db-status-badge" class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">Cloud Sync</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Sisi Kiri: Status & Pendaftaran Premium Pengguna -->
+                        <div class="bg-[#181818] p-6 rounded-xl border border-neutral-800">
+                            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                                <i class="fa-solid fa-crown text-yellow-500"></i> Status Akun Anda
+                            </h2>
+                            
+                            <div class="bg-black/40 p-4 rounded-lg mb-6 border border-neutral-900">
+                                <p class="text-xs text-gray-400 uppercase tracking-wide">ID Pengguna Anda</p>
+                                <p id="account-id-display" class="font-mono text-xs text-emerald-400 mt-1 select-all">Mendapatkan ID...</p>
+                                
+                                <p class="text-xs text-gray-400 uppercase tracking-wide mt-4">Tipe Paket</p>
+                                <p id="account-tier-display" class="font-extrabold text-lg text-white mt-1">FREE MEMBER</p>
+                            </div>
+
+                            <!-- Form Aplikasi Langganan -->
+                            <div id="subscription-box" class="space-y-4">
+                                <h3 class="text-sm font-semibold">Ajukan Berlangganan Premium</h3>
+                                <p class="text-xs text-gray-400 leading-relaxed">Nikmati akses tak terbatas ke fitur download offline. Ajukan sekarang agar disetujui secara gratis oleh Admin di konsol sebelah kanan.</p>
+                                <input type="text" id="sub-name-input" placeholder="Masukkan nama lengkap Anda..." class="w-full bg-[#242424] text-sm text-white px-4 py-3 rounded-md border border-neutral-800 outline-none focus:border-[#1db954] transition">
+                                <button onclick="requestPremium()" class="w-full bg-gradient-to-r from-emerald-500 to-[#1db954] hover:brightness-110 text-black font-extrabold text-sm py-3 rounded-md transition transform active:scale-95">
+                                    Kirim Pengajuan Berlangganan
+                                </button>
+                            </div>
+
+                            <div id="status-pending-box" class="hidden bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-lg">
+                                <p class="text-sm font-bold text-yellow-500 flex items-center gap-2">
+                                    <i class="fa-solid fa-hourglass-start animate-spin"></i> Pengajuan Sedang Diproses
+                                </p>
+                                <p class="text-xs text-gray-400 mt-1">Silakan gunakan panel admin sebelah kanan dengan password <code class="bg-black px-1.5 py-0.5 rounded text-white font-mono">ADMIN2026</code> untuk langsung menyetujui pengajuan Anda!</p>
+                            </div>
+                        </div>
+
+                        <!-- Sisi Kanan: Panel Admin (Dengan Pengaman Kode) -->
+                        <div class="bg-[#181818] p-6 rounded-xl border border-neutral-800 flex flex-col">
+                            <h2 class="text-xl font-bold mb-4 flex items-center gap-2 text-emerald-400">
+                                <i class="fa-solid fa-sliders"></i> Panel Kontrol Admin
+                            </h2>
+
+                            <!-- Gerbang Akses Kode -->
+                            <div id="admin-auth-box" class="space-y-4 flex-1">
+                                <p class="text-xs text-gray-400">Gunakan kode akses admin berikut untuk membuka panel manajemen: <strong class="text-emerald-400">ADMIN2026</strong></p>
+                                <div class="relative">
+                                    <input type="password" id="admin-passcode" placeholder="Masukkan Kode Akses Admin..." class="w-full bg-[#242424] text-sm text-white px-4 py-3 rounded-md border border-neutral-800 outline-none focus:border-red-500 transition">
+                                </div>
+                                <button onclick="authenticateAdmin()" class="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-sm py-2.5 rounded-md transition">
+                                    Buka Panel Kontrol
+                                </button>
+                            </div>
+
+                            <!-- Dasbor Admin setelah masuk -->
+                            <div id="admin-dashboard-box" class="hidden flex-1 flex flex-col">
+                                <div class="flex items-center justify-between mb-4 pb-2 border-b border-neutral-800">
+                                    <span class="text-xs bg-red-500/20 text-red-400 font-extrabold px-2.5 py-0.5 rounded">ADMIN MODE</span>
+                                    <button onclick="exitAdmin()" class="text-xs text-gray-400 hover:text-white transition underline">Keluar</button>
+                                </div>
+
+                                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Daftar Pengajuan Premium Aktif</h3>
+                                <div class="flex-1 overflow-y-auto max-h-[250px] space-y-2 pr-1" id="admin-requests-list">
+                                    <p class="text-xs text-gray-500 text-center py-8">Belum ada pengajuan masuk.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed bottom-28 left-1/2 transform -translate-x-1/2 bg-[#1db954] text-black font-bold text-xs md:text-sm px-6 py-3 rounded-full shadow-2xl opacity-0 pointer-events-none transition-all duration-300 z-50 text-center">
+        Pemberitahuan Sistem
+    </div>
+
+    <!-- AUDIO ELEMENT -->
+    <audio id="audio-core" crossorigin="anonymous"></audio>
+
+    <!-- BOTTOM MUSIC PLAYER -->
+    <footer class="h-[100px] md:h-[90px] bg-black border-t border-neutral-900 px-4 flex flex-col md:flex-row items-center justify-between z-40 shrink-0 gap-2 py-2 md:py-0">
+        <!-- Info Lagu Sedang Diputar -->
+        <div class="flex items-center gap-3 w-full md:w-1/4 min-w-[180px]">
+            <div class="w-12 h-12 md:w-14 md:h-14 bg-neutral-800 rounded-md overflow-hidden shrink-0">
+                <img id="player-cover" src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=150&q=80" alt="Cover" class="w-full h-full object-cover">
+            </div>
+            <div class="truncate flex-1">
+                <h4 id="player-title" class="text-xs md:text-sm font-semibold hover:underline cursor-pointer truncate">Selamat Datang</h4>
+                <p id="player-artist" class="text-[10px] md:text-xs text-gray-400 hover:underline cursor-pointer truncate">Pilih musik untuk mulai mendengarkan</p>
+            </div>
+            <button onclick="toggleLikeCurrentSong()" class="text-gray-400 hover:text-white transition pl-1">
+                <i id="player-like-btn" class="fa-regular fa-heart text-base md:text-lg"></i>
+            </button>
+            <button onclick="downloadCurrentSong()" class="text-gray-400 hover:text-white transition pl-2" id="download-trigger-btn">
+                <i class="fa-solid fa-arrow-down-long text-base md:text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Kontrol Musik (Center) -->
+        <div class="flex flex-col items-center gap-1 md:gap-2 max-w-xl w-full md:w-2/4">
+            <div class="flex items-center gap-4 md:gap-6">
+                <!-- Shuffle -->
+                <button onclick="toggleShuffle()" id="player-shuffle" class="text-gray-400 hover:text-white text-xs md:text-sm transition">
+                    <i class="fa-solid fa-shuffle"></i>
+                </button>
+                <!-- Prev -->
+                <button onclick="prevSong()" class="text-gray-400 hover:text-white text-base md:text-lg transition">
+                    <i class="fa-solid fa-backward-step"></i>
+                </button>
+                <!-- Play / Pause -->
+                <button onclick="togglePlay()" id="player-play-btn" class="w-8 h-8 md:w-9 md:h-9 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+                    <i class="fa-solid fa-play text-xs md:text-sm ml-0.5"></i>
+                </button>
+                <!-- Next -->
+                <button onclick="nextSong()" class="text-gray-400 hover:text-white text-base md:text-lg transition">
+                    <i class="fa-solid fa-forward-step"></i>
+                </button>
+                <!-- Repeat -->
+                <button onclick="toggleRepeat()" id="player-repeat" class="text-gray-400 hover:text-white text-xs md:text-sm transition">
+                    <i class="fa-solid fa-repeat"></i>
+                </button>
+            </div>
+            <!-- Progress Bar & Durasi -->
+            <div class="flex items-center gap-2 w-full text-[10px] md:text-xs text-gray-400 font-medium">
+                <span id="player-current-time">0:00</span>
+                <input type="range" id="progress-bar" value="0" min="0" max="100" class="w-full cursor-pointer h-1 rounded-lg">
+                <span id="player-total-time">0:30</span>
+            </div>
+        </div>
+
+        <!-- Kontrol Suara & Fitur Tambahan (Kanan) -->
+        <div class="hidden sm:flex items-center justify-end gap-3 w-1/4 min-w-[180px]">
+            <button class="text-gray-400 hover:text-white text-xs transition">
+                <i class="fa-solid fa-list-ul"></i>
+            </button>
+            <button onclick="toggleMute()" class="text-gray-400 hover:text-white text-sm transition">
+                <i id="volume-icon" class="fa-solid fa-volume-high"></i>
+            </button>
+            <input type="range" id="volume-bar" value="70" min="0" max="100" class="w-20 cursor-pointer h-1 rounded-lg">
+        </div>
+    </footer>
+
+    <!-- Firebase SDK (ES Module) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Fallback Handler: Jika config tidak disediakan oleh platform, kita gunakan fallback localStorage
+        let db, auth;
+        let isFirebaseActive = false;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'spotify-offline-clone';
+
+        if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            try {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                isFirebaseActive = true;
+            } catch (err) {
+                console.error("Gagal inisialisasi Firebase. Beralih ke penyimpanan lokal.", err);
+            }
+        }
+
+        // Global variables for Firebase state
+        window.isFirebaseActive = isFirebaseActive;
+        window.db = db;
+        window.auth = auth;
+        window.appId = appId;
+    </script>
+
+    <!-- Logika Utama Pemutar Musik & Modul Canggih -->
+    <script>
+        // State Global Aplikasi
+        let currentPlaylist = [];
+        let originalPlaylist = [];
+        let songIndex = 0;
+        let isPlaying = false;
+        let likedSongs = [];
+        let downloadedSongs = []; // Untuk melacak ID lagu yang diunduh
+        let isOfflineMode = false;
+
+        let isMuted = false;
+        let previousVolume = 0.7;
+        let isShuffle = false;
+        let isRepeat = false;
+        let playPromise = null;
+        let searchTimeout = null;
+
+        // State Langganan & Pengguna
+        let userTier = 'FREE'; // 'FREE' atau 'PREMIUM'
+        let currentUserId = 'LOCAL_USER_' + Math.random().toString(36).substring(2, 9);
+        let currentRequestStatus = null; // 'pending', 'approved', 'rejected'
+
+        // Elements
+        const audio = document.getElementById('audio-core');
+        const playBtn = document.getElementById('player-play-btn');
+        const progressBar = document.getElementById('progress-bar');
+        const volumeBar = document.getElementById('volume-bar');
+        const currentTimeEl = document.getElementById('player-current-time');
+        const totalTimeEl = document.getElementById('player-total-time');
+
+        // Database Cache Offline (Cache Storage API)
+        const OFFLINE_CACHE_NAME = 'spotify-songs-cache';
+
+        // Mengabaikan galat browser AbortError secara elegan jika pengguna mengklik lagu terlalu cepat
+        window.addEventListener('unhandledrejection', function(event) {
+            if (event.reason && (event.reason.name === 'AbortError' || event.reason.message?.includes('interrupted'))) {
+                event.preventDefault();
+            }
+        });
+
+        // Main Initialize
+        window.addEventListener('DOMContentLoaded', async () => {
+            setGreeting();
+            loadLocalStorageData();
+            loadDefaultHits();
+            setupFirebaseIntegration();
+            updateOfflineUI();
+
+            // Set Volume Awal
+            audio.volume = volumeBar.value / 100;
+
+            // Audio Events
+            audio.addEventListener('timeupdate', updateProgressBar);
+            audio.addEventListener('loadedmetadata', setTotalTime);
+            audio.addEventListener('ended', handleSongEnded);
+
+            // Progress Bar Handler
+            progressBar.addEventListener('input', () => {
+                if (audio.duration) {
+                    const targetTime = (progressBar.value / 100) * audio.duration;
+                    audio.currentTime = targetTime;
+                }
+            });
+
+            // Volume Bar Handler
+            volumeBar.addEventListener('input', () => {
+                audio.volume = volumeBar.value / 100;
+                updateVolumeIcon();
+            });
+        });
+
+        // Mengambil data terunduh & disukai dari LocalStorage
+        function loadLocalStorageData() {
+            const savedLikes = localStorage.getItem('spotify_likes');
+            if (savedLikes) {
+                likedSongs = JSON.parse(savedLikes);
+                updateLikedSongsUI();
+            }
+
+            const savedDownloads = localStorage.getItem('spotify_downloads');
+            if (savedDownloads) {
+                downloadedSongs = JSON.parse(savedDownloads);
+                document.getElementById('downloaded-songs-count').innerText = `${downloadedSongs.length} lagu`;
+            }
+        }
+
+        // Set Greeting Dinamis Berdasarkan Waktu Lokal
+        function setGreeting() {
+            const hour = new Date().getHours();
+            const greetingEl = document.getElementById('greeting');
+            if (hour < 11) greetingEl.innerText = "Selamat Pagi 🌅";
+            else if (hour < 15) greetingEl.innerText = "Selamat Siang ☀️";
+            else if (hour < 19) greetingEl.innerText = "Selamat Sore 🌇";
+            else greetingEl.innerText = "Selamat Malam 🌙";
+        }
+
+        // Sinkronisasi Status Pengguna & Pendaftaran ke Database
+        function setupFirebaseIntegration() {
+            // Berikan jeda sejenak untuk membiarkan modul Firebase ter-import sempurna
+            setTimeout(() => {
+                if (window.isFirebaseActive && window.auth && window.db) {
+                    const auth = window.auth;
+                    const db = window.db;
+                    const signInAnonymously = () => {
+                        import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js").then((m) => {
+                            m.signInAnonymously(auth).then((cred) => {
+                                currentUserId = cred.user.uid;
+                                document.getElementById('account-id-display').innerText = currentUserId;
+                                // Lakukan uji coba koneksi sebelum memanggil listener real-time
+                                testFirestoreConnection(db, currentUserId);
+                            }).catch(err => {
+                                handleFirebasePermissionDenied();
+                            });
+                        }).catch(err => {
+                            handleFirebasePermissionDenied();
+                        });
+                    };
+                    signInAnonymously();
+                } else {
+                    // Fallback jika mode Firebase tidak diaktifkan oleh platform
+                    handleFirebasePermissionDenied();
+                }
+            }, 800);
+        }
+
+        // Melakukan test baca database sebelum mengaktifkan onSnapshot
+        function testFirestoreConnection(db, uid) {
+            import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then((m) => {
+                const docRef = m.doc(db, 'artifacts', window.appId, 'public', 'data');
+                m.getDoc(docRef).then(() => {
+                    // Koneksi sukses & memiliki izin! Sekarang aman mengaktifkan snapshot
+                    listenToUserStatus(db, uid);
+                    listenToAllAdminRequests(db);
+                }).catch((error) => {
+                    // Gagal karena masalah izin, langsung alihkan ke mode lokal secara senyap
+                    handleFirebasePermissionDenied();
+                });
+            }).catch(() => {
+                handleFirebasePermissionDenied();
+            });
+        }
+
+        function handleFirebasePermissionDenied() {
+            window.isFirebaseActive = false;
+            
+            // Ubah badge status di UI menjadi Local Database Mode
+            const badge = document.getElementById('db-status-badge');
+            if (badge) {
+                badge.innerText = "Secure Local Storage Mode";
+                badge.className = "text-[10px] bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-bold";
+            }
+            
+            setupLocalFallbackUser();
+            
+            // Jika modul Admin Auth sudah terbuka, paksa render admin lokal jika perlu
+            if (document.getElementById('admin-dashboard-box').classList.contains('hidden') === false) {
+                renderLocalFallbackAdmin();
+            }
+        }
+
+        function setupLocalFallbackUser() {
+            document.getElementById('account-id-display').innerText = currentUserId;
+            // Baca status premium lokal
+            const localPremium = localStorage.getItem('spotify_premium_local');
+            if (localPremium === 'true') {
+                updateUserTier('PREMIUM');
+            } else {
+                updateUserTier('FREE');
+            }
+        }
+
+        // Memantau status berlangganan pengguna
+        function listenToUserStatus(db, uid) {
+            if (!window.isFirebaseActive) return;
+            import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then((m) => {
+                const docRef = m.doc(db, 'artifacts', window.appId, 'public', 'data');
+                m.onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        const subscriptions = data.subscriptions || {};
+                        const userSub = subscriptions[uid];
+                        
+                        if (userSub) {
+                            currentRequestStatus = userSub.status;
+                            
+                            if (userSub.status === 'approved') {
+                                updateUserTier('PREMIUM');
+                                document.getElementById('subscription-box').classList.add('hidden');
+                                document.getElementById('status-pending-box').classList.add('hidden');
+                            } else if (userSub.status === 'pending') {
+                                updateUserTier('FREE');
+                                document.getElementById('subscription-box').classList.add('hidden');
+                                document.getElementById('status-pending-box').classList.remove('hidden');
+                            } else {
+                                updateUserTier('FREE');
+                                document.getElementById('subscription-box').classList.remove('hidden');
+                                document.getElementById('status-pending-box').classList.add('hidden');
+                            }
+                        } else {
+                            updateUserTier('FREE');
+                            document.getElementById('subscription-box').classList.remove('hidden');
+                            document.getElementById('status-pending-box').classList.add('hidden');
+                        }
+                    } else {
+                        updateUserTier('FREE');
+                        document.getElementById('subscription-box').classList.remove('hidden');
+                        document.getElementById('status-pending-box').classList.add('hidden');
+                    }
+                }, (error) => {
+                    handleFirebasePermissionDenied();
+                });
+            });
+        }
+
+        // Membarui UI Berdasarkan Tingkatan (Tier) Akun
+        function updateUserTier(tier) {
+            userTier = tier;
+            const badge = document.getElementById('user-tier-badge');
+            const tierDisplay = document.getElementById('account-tier-display');
+            const downloadBtn = document.getElementById('download-trigger-btn');
+
+            if (tier === 'PREMIUM') {
+                badge.innerText = "Premium Member";
+                badge.className = "bg-gradient-to-r from-yellow-400 to-amber-500 text-black text-[10px] md:text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-lg";
+                tierDisplay.innerText = "PREMIUM MEMBER 👑";
+                tierDisplay.className = "font-extrabold text-lg text-yellow-400 mt-1";
+                downloadBtn.classList.remove('opacity-40');
+                downloadBtn.title = "Unduh Lagu";
+            } else {
+                badge.innerText = "Free Tier";
+                badge.className = "bg-neutral-800 text-gray-300 text-[10px] md:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider";
+                tierDisplay.innerText = "FREE MEMBER";
+                tierDisplay.className = "font-extrabold text-lg text-white mt-1";
+                downloadBtn.classList.add('opacity-40');
+                downloadBtn.title = "Khusus Premium Member";
+            }
+        }
+
+        // Mengajukan Langganan Premium
+        function requestPremium() {
+            const nameInput = document.getElementById('sub-name-input');
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                showToast("Masukkan nama Anda terlebih dahulu!");
+                return;
+            }
+
+            if (window.isFirebaseActive && window.db) {
+                import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then((m) => {
+                    const docRef = m.doc(window.db, 'artifacts', window.appId, 'public', 'data');
+                    const updateData = {};
+                    updateData[`subscriptions.${currentUserId}`] = {
+                        userId: currentUserId,
+                        username: name,
+                        status: 'pending',
+                        requestedAt: Date.now()
+                    };
+                    m.setDoc(docRef, updateData, { merge: true }).then(() => {
+                        showToast("Pengajuan dikirim! Silakan setujui di Panel Admin.");
+                    }).catch(err => {
+                        fallbackToLocalPremiumSimulation(name);
+                    });
+                });
+            } else {
+                fallbackToLocalPremiumSimulation(name);
+            }
+        }
+
+        function fallbackToLocalPremiumSimulation(name) {
+            localStorage.setItem('spotify_premium_local_name', name);
+            localStorage.setItem('spotify_premium_local_pending', 'true');
+            
+            document.getElementById('subscription-box').classList.add('hidden');
+            document.getElementById('status-pending-box').classList.remove('hidden');
+            showToast("Pengajuan lokal tersimpan! Masuk ke Panel Admin untuk menyetujuinya.");
+        }
+
+        // Verifikasi Akses Admin
+        function authenticateAdmin() {
+            const passcode = document.getElementById('admin-passcode').value;
+            if (passcode === 'ADMIN2026') {
+                document.getElementById('admin-auth-box').classList.add('hidden');
+                document.getElementById('admin-dashboard-box').classList.remove('hidden');
+                showToast("Akses Admin Terbuka!");
+                if (window.isFirebaseActive && window.db) {
+                    listenToAllAdminRequests(window.db);
+                } else {
+                    renderLocalFallbackAdmin();
+                }
+            } else {
+                showToast("Kode akses salah! Gunakan: ADMIN2026");
+            }
+        }
+
+        function exitAdmin() {
+            document.getElementById('admin-auth-box').classList.remove('hidden');
+            document.getElementById('admin-dashboard-box').classList.add('hidden');
+            document.getElementById('admin-passcode').value = '';
+        }
+
+        // Memantau pengajuan langganan dari admin (Real-time Cloud Database)
+        function listenToAllAdminRequests(db) {
+            if (!window.isFirebaseActive) return;
+            import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then((m) => {
+                const docRef = m.doc(db, 'artifacts', window.appId, 'public', 'data');
+                m.onSnapshot(docRef, (docSnap) => {
+                    const adminListEl = document.getElementById('admin-requests-list');
+                    adminListEl.innerHTML = "";
+
+                    let pendingCount = 0;
+
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        const subscriptions = data.subscriptions || {};
+                        
+                        Object.keys(subscriptions).forEach((uid) => {
+                            const sub = subscriptions[uid];
+                            if (sub.status === 'pending') {
+                                pendingCount++;
+                                adminListEl.innerHTML += `
+                                    <div class="bg-black/60 p-3 rounded-lg border border-neutral-800 flex flex-col gap-2">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-xs font-bold text-white truncate max-w-[150px]">${sub.username}</span>
+                                            <span class="text-[9px] text-gray-500 font-mono">ID: ${sub.userId.substring(0, 6)}...</span>
+                                        </div>
+                                        <div class="flex gap-2 justify-end">
+                                            <button onclick="approveUser('${sub.userId}')" class="bg-emerald-500 text-black text-[10px] font-extrabold px-3 py-1 rounded hover:scale-105 transition">Approve</button>
+                                            <button onclick="rejectUser('${sub.userId}')" class="bg-red-500/20 text-red-400 text-[10px] font-bold px-3 py-1 rounded hover:scale-105 transition border border-red-500/30">Reject</button>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        });
+                    }
+
+                    if (pendingCount === 0) {
+                        adminListEl.innerHTML = `<p class="text-xs text-gray-500 text-center py-8">Tidak ada pengajuan pending saat ini.</p>`;
+                    }
+                }, (error) => {
+                    handleFirebasePermissionDenied();
+                });
+            });
+        }
+
+        function renderLocalFallbackAdmin() {
+            const adminListEl = document.getElementById('admin-requests-list');
+            const isPending = localStorage.getItem('spotify_premium_local_pending') === 'true';
+            const localName = localStorage.getItem('spotify_premium_local_name') || 'Guest User';
+
+            if (isPending) {
+                adminListEl.innerHTML = `
+                    <div class="bg-black/60 p-3 rounded-lg border border-neutral-800 flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-white truncate max-w-[150px]">${localName} (Lokal)</span>
+                            <span class="text-[9px] text-gray-500 font-mono">ID: LOCAL_USER</span>
+                        </div>
+                        <div class="flex gap-2 justify-end">
+                            <button onclick="approveUserLocal()" class="bg-emerald-500 text-black text-[10px] font-extrabold px-3 py-1 rounded hover:scale-105 transition">Approve</button>
+                            <button onclick="rejectUserLocal()" class="bg-red-500/20 text-red-400 text-[10px] font-bold px-3 py-1 rounded hover:scale-105 transition border border-red-500/30">Reject</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                const isApproved = localStorage.getItem('spotify_premium_local') === 'true';
+                if (isApproved) {
+                    adminListEl.innerHTML = `
+                        <div class="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-lg">
+                            <p class="text-[11px] text-gray-300 leading-normal"><strong>Status: PREMIUM AKTIF (Lokal)</strong></p>
+                            <button onclick="resetLocalSubscription()" class="mt-2 text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-1 rounded hover:bg-red-500/30 transition">Kembalikan Status ke Free</button>
+                        </div>
+                    `;
+                } else {
+                    adminListEl.innerHTML = `<p class="text-xs text-gray-500 text-center py-8">Tidak ada pengajuan masuk (Lokal).</p>`;
+                }
+            }
+        }
+
+        function approveUserLocal() {
+            localStorage.setItem('spotify_premium_local', 'true');
+            localStorage.removeItem('spotify_premium_local_pending');
+            updateUserTier('PREMIUM');
+            document.getElementById('subscription-box').classList.add('hidden');
+            document.getElementById('status-pending-box').classList.add('hidden');
+            renderLocalFallbackAdmin();
+            showToast("Status Premium Lokal Berhasil Disetujui!");
+        }
+
+        function rejectUserLocal() {
+            localStorage.removeItem('spotify_premium_local');
+            localStorage.removeItem('spotify_premium_local_pending');
+            updateUserTier('FREE');
+            document.getElementById('subscription-box').classList.remove('hidden');
+            document.getElementById('status-pending-box').classList.add('hidden');
+            renderLocalFallbackAdmin();
+            showToast("Pengajuan Premium Ditolak.");
+        }
+
+        function resetLocalSubscription() {
+            localStorage.removeItem('spotify_premium_local');
+            localStorage.removeItem('spotify_premium_local_pending');
+            localStorage.removeItem('spotify_premium_local_name');
+            updateUserTier('FREE');
+            document.getElementById('subscription-box').classList.remove('hidden');
+            document.getElementById('status-pending-box').classList.add('hidden');
+            renderLocalFallbackAdmin();
+            showToast("Kembali ke Free Member");
+        }
+
+        // Persetujuan Berlangganan Premium oleh Admin
+        function approveUser(uid) {
+            if (window.isFirebaseActive && window.db) {
+                import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then((m) => {
+                    const docRef = m.doc(window.db, 'artifacts', window.appId, 'public', 'data');
+                    const updateData = {};
+                    updateData[`subscriptions.${uid}.status`] = 'approved';
+                    m.updateDoc(docRef, updateData).then(() => {
+                        showToast(`Pengguna berhasil disetujui sebagai Premium!`);
+                    }).catch(err => {
+                        console.warn("Gagal menyetujui di cloud, beralih ke lokal.", err);
+                        approveUserLocal();
+                    });
+                });
+            } else {
+                approveUserLocal();
+            }
+        }
+
+        function rejectUser(uid) {
+            if (window.isFirebaseActive && window.db) {
+                import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js").then((m) => {
+                    const docRef = m.doc(window.db, 'artifacts', window.appId, 'public', 'data');
+                    const updateData = {};
+                    updateData[`subscriptions.${uid}.status`] = 'rejected';
+                    m.updateDoc(docRef, updateData).then(() => {
+                        showToast(`Pengajuan ditolak.`);
+                    }).catch(err => {
+                        console.warn("Gagal menolak di cloud, beralih ke lokal.", err);
+                        rejectUserLocal();
+                    });
+                });
+            } else {
+                rejectUserLocal();
+            }
+        }
+
+
+        // Konfigurasi Kendali Latar Belakang (Media Session API)
+        function updateMediaSession(song) {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: song.title,
+                    artist: song.artist,
+                    album: 'Spotify Offline Clone',
+                    artwork: [
+                        { src: song.cover, sizes: '300x300', type: 'image/jpeg' },
+                        { src: song.cover, sizes: '512x512', type: 'image/jpeg' }
+                    ]
+                });
+
+                // Tetapkan Callback Tombol Sistem Operasi
+                navigator.mediaSession.setActionHandler('play', togglePlay);
+                navigator.mediaSession.setActionHandler('pause', togglePlay);
+                navigator.mediaSession.setActionHandler('previoustrack', prevSong);
+                navigator.mediaSession.setActionHandler('nexttrack', nextSong);
+            }
+        }
+
+        // Mengunduh Lagu Secara Instan untuk Akses Offline
+        async function downloadCurrentSong() {
+            if (userTier !== 'PREMIUM') {
+                showToast("Fitur khusus Premium! Ajukan berlangganan gratis di tab Premium.");
+                return;
+            }
+
+            if (currentPlaylist.length === 0) return;
+            const currentSong = currentPlaylist[songIndex];
+
+            // Cek apakah sudah diunduh sebelumnya
+            if (downloadedSongs.some(song => song.id === currentSong.id)) {
+                showToast("Lagu ini sudah diunduh.");
+                return;
+            }
+
+            showToast("Mengunduh ke database browser...");
+
+            try {
+                // Gunakan Cache Storage API untuk mengunduh dan menyimpan response audio
+                const cache = await caches.open(OFFLINE_CACHE_NAME);
+                
+                // Cari dan download stream audio serta artwork/gambar cover
+                await cache.addAll([
+                    currentSong.src,
+                    currentSong.cover
+                ]);
+
+                // Simpan metadata lagu di LocalStorage
+                downloadedSongs.push(currentSong);
+                localStorage.setItem('spotify_downloads', JSON.stringify(downloadedSongs));
+
+                document.getElementById('downloaded-songs-count').innerText = `${downloadedSongs.length} lagu`;
+                showToast("Berhasil diunduh! Siap diputar offline 📥");
+            } catch (err) {
+                console.error("Kesalahan saat mengunduh lagu:", err);
+                showToast("Gagal mengunduh lagu secara offline.");
+            }
+        }
+
+        // Mengubah status Mode Offline
+        function toggleOfflineMode() {
+            isOfflineMode = !isOfflineMode;
+            updateOfflineUI();
+
+            if (isOfflineMode) {
+                showToast("Mode Offline AKTIF. Hanya dapat memutar unduhan.");
+                playOfflinePlaylist();
+            } else {
+                showToast("Mode Offline NONAKTIF. Kembali ke mode normal.");
+                loadDefaultHits();
+            }
+        }
+
+        function updateOfflineUI() {
+            const toggleCircle = document.getElementById('offline-toggle-circle');
+            const toggleBtn = document.getElementById('offline-toggle-btn');
+
+            if (isOfflineMode) {
+                toggleCircle.className = "w-4 h-4 bg-white rounded-full transition transform translate-x-4";
+                toggleBtn.className = "w-10 h-6 bg-[#1db954] rounded-full p-1 transition duration-300 relative";
+            } else {
+                toggleCircle.className = "w-4 h-4 bg-white rounded-full transition transform translate-x-0";
+                toggleBtn.className = "w-10 h-6 bg-neutral-600 rounded-full p-1 transition duration-300 relative";
+            }
+        }
+
+        // Putar Playlist Unduhan Offline
+        function playOfflinePlaylist() {
+            if (downloadedSongs.length === 0) {
+                showToast("Belum ada lagu yang diunduh.");
+                return;
+            }
+            currentPlaylist = [...downloadedSongs];
+            originalPlaylist = [...downloadedSongs];
+            songIndex = 0;
+            loadSong(currentPlaylist[songIndex]);
+        }
+
+        // Menutup & Membuka Menu Sidebar di HP
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            
+            sidebar.classList.toggle('-translate-x-full');
+            backdrop.classList.toggle('hidden');
+        }
+
+        // Pindah Antara View Home, Search, dan Premium
+        function switchView(viewName) {
+            const homeView = document.getElementById('view-home');
+            const searchView = document.getElementById('view-search');
+            const premiumView = document.getElementById('view-premium');
+
+            const navHome = document.getElementById('nav-home');
+            const navSearch = document.getElementById('nav-search');
+            const navPremium = document.getElementById('nav-premium');
+
+            homeView.classList.add('hidden');
+            searchView.classList.add('hidden');
+            premiumView.classList.add('hidden');
+
+            navHome.className = "flex items-center gap-5 text-gray-400 hover:text-white font-bold transition duration-200 text-sm py-1";
+            navSearch.className = "flex items-center gap-5 text-gray-400 hover:text-white font-bold transition duration-200 text-sm py-1";
+            navPremium.className = "flex items-center gap-5 text-gray-400 hover:text-white font-bold transition duration-200 text-sm py-1";
+
+            if (viewName === 'home') {
+                homeView.classList.remove('hidden');
+                navHome.className = "flex items-center gap-5 text-white font-bold transition duration-200 text-sm py-1";
+                clearHeaderSearch();
+            } else if (viewName === 'search') {
+                searchView.classList.remove('hidden');
+                navSearch.className = "flex items-center gap-5 text-white font-bold transition duration-200 text-sm py-1";
+            } else {
+                premiumView.classList.remove('hidden');
+                navPremium.className = "flex items-center gap-5 text-white font-bold transition duration-200 text-sm py-1";
+            }
+
+            if (window.innerWidth < 768) {
+                const sidebar = document.getElementById('sidebar');
+                const backdrop = document.getElementById('sidebar-backdrop');
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            }
+        }
+
+        function onSearchFocus() {
+            switchView('search');
+        }
+
+        function handleHeaderSearch(value) {
+            const clearBtn = document.getElementById('clear-search-btn');
+            
+            if (value.trim() !== "") {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+                document.getElementById('search-results-section').classList.add('hidden');
+                return;
+            }
+
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                executeSearch(value);
+            }, 400);
+        }
+
+        function clearHeaderSearch() {
+            const searchInput = document.getElementById('header-search-input');
+            searchInput.value = "";
+            document.getElementById('clear-search-btn').classList.add('hidden');
+            document.getElementById('search-results-section').classList.add('hidden');
+        }
+
+        // Mengunduh Daftar Musik Rekomendasi di Beranda
+        async function loadDefaultHits() {
+            if (isOfflineMode) return; // Mode offline tidak boleh memuat API
+
+            try {
+                const response = await fetch('https://itunes.apple.com/search?term=coldplay&media=music&limit=12');
+                const data = await response.json();
+                
+                if (data.results && data.results.length > 0) {
+                    const formattedSongs = data.results.map(item => ({
+                        id: item.trackId,
+                        title: item.trackName,
+                        artist: item.artistName,
+                        cover: item.artworkUrl100.replace('100x100bb.jpg', '400x400bb.jpg'),
+                        src: item.previewUrl
+                    }));
+
+                    currentPlaylist = [...formattedSongs];
+                    originalPlaylist = [...formattedSongs];
+
+                    renderHomeGrids(formattedSongs);
+                    loadSong(currentPlaylist[0], false);
+                }
+            } catch (error) {
+                console.error("Gagal mengunduh musik default:", error);
+                showToast("Koneksi gagal. Memuat offline backup playlist.");
+            }
+        }
+
+        function renderHomeGrids(songs) {
+            const quickGrid = document.getElementById('quick-access-grid');
+            const recommendationGrid = document.getElementById('recommendation-grid');
+            
+            quickGrid.innerHTML = "";
+            recommendationGrid.innerHTML = "";
+
+            const quickItems = songs.slice(0, 6);
+            quickItems.forEach(song => {
+                quickGrid.innerHTML += `
+                    <div onclick="playSongById(${song.id})" class="flex items-center bg-white/5 hover:bg-white/10 rounded-md overflow-hidden cursor-pointer transition group relative">
+                        <img src="${song.cover}" alt="Cover" class="w-16 h-16 md:w-20 md:h-20 object-cover shrink-0">
+                        <span class="font-bold ml-4 text-xs md:text-sm truncate pr-16">${song.title}</span>
+                        <button class="absolute right-4 w-10 h-10 bg-[#1db954] text-black rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-lg hover:scale-105 active:scale-95 transition-all duration-300">
+                            <i class="fa-solid fa-play ml-0.5"></i>
+                        </button>
+                    </div>
+                `;
+            });
+
+            const recommendationItems = songs.slice(6, 12);
+            recommendationItems.forEach(song => {
+                recommendationGrid.innerHTML += `
+                    <div onclick="playSongById(${song.id})" class="spotify-card bg-[#181818] p-3 md:p-4 rounded-lg cursor-pointer flex flex-col relative group">
+                        <div class="relative w-full aspect-square mb-3 rounded-md overflow-hidden shadow-lg">
+                            <img src="${song.cover}" alt="Cover" class="w-full h-full object-cover">
+                            <button class="play-btn absolute right-3 bottom-3 w-10 h-10 md:w-12 md:h-12 bg-[#1db954] text-black rounded-full flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all">
+                                <i class="fa-solid fa-play ml-0.5 text-base md:text-lg"></i>
+                            </button>
+                        </div>
+                        <h3 class="font-bold text-xs md:text-sm tracking-tight truncate">${song.title}</h3>
+                        <p class="text-[10px] md:text-xs text-gray-400 font-medium mt-1 truncate">${song.artist}</p>
+                    </div>
+                `;
+            });
+        }
+
+        async function executeSearch(query) {
+            if (isOfflineMode) {
+                // Jika offline mode, cari hanya lagu yang sudah diunduh
+                const filtered = downloadedSongs.filter(song => 
+                    song.title.toLowerCase().includes(query.toLowerCase()) || 
+                    song.artist.toLowerCase().includes(query.toLowerCase())
+                );
+                renderSearchResults(filtered);
+                return;
+            }
+
+            const resultsSection = document.getElementById('search-results-section');
+            const resultsGrid = document.getElementById('search-results-grid');
+
+            if (!query || query.trim() === "") return;
+
+            resultsSection.classList.remove('hidden');
+            resultsGrid.innerHTML = `
+                <div class="col-span-1 md:col-span-2 py-8 flex flex-col items-center justify-center gap-3">
+                    <div class="w-8 h-8 border-4 border-[#1db954] border-t-transparent rounded-full animate-spin"></div>
+                    <p class="text-sm text-gray-400">Mencari lagu terbaik untukmu...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&limit=20`);
+                const data = await response.json();
+
+                if (!data.results || data.results.length === 0) {
+                    resultsGrid.innerHTML = `
+                        <div class="col-span-1 md:col-span-2 py-8 text-center text-gray-400">
+                            <i class="fa-solid fa-circle-info text-2xl mb-2"></i>
+                            <p class="text-sm">Lagu tidak ditemukan.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const searchedSongs = data.results.map(item => ({
+                    id: item.trackId,
+                    title: item.trackName,
+                    artist: item.artistName,
+                    cover: item.artworkUrl100.replace('100x100bb.jpg', '300x300bb.jpg'),
+                    src: item.previewUrl
+                }));
+
+                currentPlaylist = [...searchedSongs];
+                originalPlaylist = [...searchedSongs];
+
+                renderSearchResults(searchedSongs);
+
+            } catch (error) {
+                console.error("Gagal saat mencari lagu:", error);
+                resultsGrid.innerHTML = `<p class="text-red-500 text-sm py-4 col-span-1 md:col-span-2 text-center">Gagal memuat hasil pencarian.</p>`;
+            }
+        }
+
+        function renderSearchResults(songs) {
+            const resultsSection = document.getElementById('search-results-section');
+            const resultsGrid = document.getElementById('search-results-grid');
+            
+            resultsSection.classList.remove('hidden');
+            resultsGrid.innerHTML = "";
+
+            songs.forEach(song => {
+                resultsGrid.innerHTML += `
+                    <div onclick="playSongById(${song.id})" class="flex items-center justify-between p-3 bg-[#181818] hover:bg-[#282828] rounded-md cursor-pointer transition">
+                        <div class="flex items-center gap-3 truncate pr-4">
+                            <img src="${song.cover}" alt="Cover" class="w-12 h-12 object-cover rounded-sm shrink-0">
+                            <div class="truncate">
+                                <h4 class="font-bold text-xs md:text-sm truncate">${song.title}</h4>
+                                <p class="text-[10px] md:text-xs text-gray-400 truncate">${song.artist}</p>
+                            </div>
+                        </div>
+                        <button class="w-8 h-8 bg-white text-black rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition shrink-0">
+                            <i class="fa-solid fa-play ml-0.5 text-xs"></i>
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function quickGenreSearch(genre) {
+            const searchInput = document.getElementById('header-search-input');
+            searchInput.value = genre;
+            document.getElementById('clear-search-btn').classList.remove('hidden');
+            switchView('search');
+            executeSearch(genre);
+        }
+
+        // Memuat Lagu ke Elemen Audio Pemutar
+        async function loadSong(song, autoPlay = true) {
+            audio.pause();
+            
+            document.getElementById('player-title').innerText = song.title;
+            document.getElementById('player-artist').innerText = song.artist;
+            document.getElementById('player-cover').src = song.cover;
+            
+            // Cek offline status & ubah resource ke cache jika dalam mode Offline
+            if (isOfflineMode) {
+                try {
+                    const cache = await caches.open(OFFLINE_CACHE_NAME);
+                    const response = await cache.match(song.src);
+                    if (response) {
+                        const blob = await response.blob();
+                        audio.src = URL.createObjectURL(blob);
+                    } else {
+                        audio.src = song.src; // Fallback jika gagal mencari cache
+                    }
+                } catch (e) {
+                    audio.src = song.src;
+                }
+            } else {
+                audio.src = song.src;
+            }
+
+            // Atur status ikon menyukai
+            const likeBtn = document.getElementById('player-like-btn');
+            if (likedSongs.some(item => item.id === song.id)) {
+                likeBtn.className = "fa-solid fa-heart text-[#1db954]";
+            } else {
+                likeBtn.className = "fa-regular fa-heart";
+            }
+
+            // Update Kendali Latar Belakang (Lock Screen)
+            updateMediaSession(song);
+
+            if (autoPlay) {
+                isPlaying = true;
+                playBtn.innerHTML = `<i class="fa-solid fa-pause text-xs md:text-sm"></i>`;
+                safePlay();
+            } else {
+                isPlaying = false;
+                playBtn.innerHTML = `<i class="fa-solid fa-play text-xs md:text-sm ml-0.5"></i>`;
+            }
+        }
+
+        // Pemutar Musik Aman
+        function safePlay() {
+            if (!audio.src) return;
+            
+            playPromise = audio.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    // Berhasil mulai diputar
+                }).catch(error => {
+                    if (error.name === 'AbortError') {
+                        console.log("Transisi lagu cepat terdeteksi.");
+                    }
+                });
+            }
+        }
+
+        // Play atau Pause Toggle
+        function togglePlay() {
+            if (isPlaying) {
+                audio.pause();
+                playBtn.innerHTML = `<i class="fa-solid fa-play text-xs md:text-sm ml-0.5"></i>`;
+                isPlaying = false;
+            } else {
+                playBtn.innerHTML = `<i class="fa-solid fa-pause text-xs md:text-sm"></i>`;
+                isPlaying = true;
+                safePlay();
+            }
+        }
+
+        function playSongById(id) {
+            const targetIndex = currentPlaylist.findIndex(song => song.id === id);
+            if (targetIndex !== -1) {
+                songIndex = targetIndex;
+                loadSong(currentPlaylist[songIndex]);
+            }
+        }
+
+        function nextSong() {
+            if (currentPlaylist.length === 0) return;
+            songIndex = (songIndex + 1) % currentPlaylist.length;
+            loadSong(currentPlaylist[songIndex]);
+        }
+
+        function prevSong() {
+            if (currentPlaylist.length === 0) return;
+            songIndex = (songIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
+            loadSong(currentPlaylist[songIndex]);
+        }
+
+        function updateProgressBar() {
+            if (audio.duration) {
+                const percent = (audio.currentTime / audio.duration) * 100;
+                progressBar.value = percent;
+                currentTimeEl.innerText = formatTime(audio.currentTime);
+            }
+        }
+
+        function setTotalTime() {
+            totalTimeEl.innerText = formatTime(audio.duration || 30);
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return "0:00";
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60);
+            return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+
+        function handleSongEnded() {
+            if (isRepeat) {
+                audio.currentTime = 0;
+                safePlay();
+            } else {
+                nextSong();
+            }
+        }
+
+        // Favoritkan Lagu
+        function toggleLikeCurrentSong() {
+            if (currentPlaylist.length === 0) return;
+            const currentSong = currentPlaylist[songIndex];
+            const likeBtn = document.getElementById('player-like-btn');
+            const index = likedSongs.findIndex(song => song.id === currentSong.id);
+
+            if (index === -1) {
+                likedSongs.push(currentSong);
+                likeBtn.className = "fa-solid fa-heart text-[#1db954] scale-125 transition duration-150";
+                setTimeout(() => likeBtn.classList.remove('scale-125'), 150);
+                showToast("Ditambahkan ke Lagu yang Disukai 💚");
+            } else {
+                likedSongs.splice(index, 1);
+                likeBtn.className = "fa-regular fa-heart";
+                showToast("Dihapus dari Lagu yang Disukai");
+            }
+            
+            localStorage.setItem('spotify_likes', JSON.stringify(likedSongs));
+            updateLikedSongsUI();
+        }
+
+        function updateLikedSongsUI() {
+            document.getElementById('liked-songs-count').innerText = `${likedSongs.length} lagu`;
+        }
+
+        function playLikedPlaylist() {
+            if (likedSongs.length === 0) {
+                showToast("Daftar Lagu Disukai masih kosong.");
+                return;
+            }
+            currentPlaylist = [...likedSongs];
+            originalPlaylist = [...likedSongs];
+            songIndex = 0;
+            loadSong(currentPlaylist[songIndex]);
+        }
+
+        function toggleMute() {
+            if (isMuted) {
+                audio.volume = previousVolume;
+                volumeBar.value = previousVolume * 100;
+            } else {
+                previousVolume = audio.volume;
+                audio.volume = 0;
+                volumeBar.value = 0;
+            }
+            isMuted = !isMuted;
+            updateVolumeIcon();
+        }
+
+        function updateVolumeIcon() {
+            const volIcon = document.getElementById('volume-icon');
+            if (audio.volume === 0) {
+                volIcon.className = "fa-solid fa-volume-xmark";
+            } else if (audio.volume < 0.4) {
+                volIcon.className = "fa-solid fa-volume-low";
+            } else {
+                volIcon.className = "fa-solid fa-volume-high";
+            }
+        }
+
+        function toggleShuffle() {
+            isShuffle = !isShuffle;
+            const shuffleBtn = document.getElementById('player-shuffle');
+            if (isShuffle) {
+                shuffleBtn.className = "text-[#1db954] hover:text-[#1ed760] transition text-xs md:text-sm";
+                currentPlaylist.sort(() => Math.random() - 0.5);
+                showToast("Mode acak aktif");
+            } else {
+                shuffleBtn.className = "text-gray-400 hover:text-white transition text-xs md:text-sm";
+                currentPlaylist = [...originalPlaylist];
+                showToast("Mode acak nonaktif");
+            }
+        }
+
+        function toggleRepeat() {
+            isRepeat = !isRepeat;
+            const repeatBtn = document.getElementById('player-repeat');
+            if (isRepeat) {
+                repeatBtn.className = "text-[#1db954] hover:text-[#1ed760] transition text-xs md:text-sm";
+                showToast("Pengulangan aktif");
+            } else {
+                repeatBtn.className = "text-gray-400 hover:text-white transition text-xs md:text-sm";
+                showToast("Pengulangan nonaktif");
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.style.opacity = "1";
+            toast.style.transform = "translate(-50%, -10px)";
+            
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translate(-50%, 0)";
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
